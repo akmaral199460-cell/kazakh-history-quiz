@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Оқушы панелі — Қазақтардың ру-тайпалық құрылымы</title>
+<style>
+* { box-sizing: border-box; }
+body {
+    margin: 0; padding: 15px; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg,#101b3b,#263d70,#596a9e);
+    display: flex; justify-content: center; align-items: center; overflow-x: hidden;
+}
+.container {
+    width: 100%; max-width: 720px; background: white; padding: 24px;
+    border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+}
+.header { text-align: center; }
+h1 { color: #293c79; font-size: 22px; margin: 8px 0; line-height: 1.35; }
+.subtitle { color: #64748b; font-size: 14px; margin-bottom: 16px; }
+
+.login-box {
+    background: #f1f5ff; padding: 22px; border-radius: 18px; border: 2px solid #dbe4ff;
+}
+.login-box input {
+    width: 100%; padding: 13px; margin: 8px 0; border: 2px solid #cbd5e1;
+    border-radius: 12px; font-size: 16px; outline: none;
+}
+.login-box input:focus { border-color: #2563eb; }
+
+button {
+    border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold;
+    cursor: pointer; transition: 0.2s;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.start-btn { width: 100%; background: #16a34a; color: white; margin-top: 10px; font-size: 17px; }
+
+.info { display: flex; justify-content: space-between; font-weight: bold; color: #1e293b; margin-top: 12px; }
+.progress { height: 12px; background: #e2e8f0; border-radius: 20px; margin-top: 10px; overflow: hidden; }
+.bar { height: 100%; width: 0; background: linear-gradient(90deg,#16a34a,#6366f1); transition: width 0.35s; }
+
+.question-box {
+    min-height: 150px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 18px;
+    margin-top: 18px; padding: 20px; display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.question { font-size: 20px; font-weight: bold; color: #1e293b; line-height: 1.5; }
+
+.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.true { background: #16a34a; color: white; }
+.false { background: #dc2626; color: white; }
+.help { width: 100%; background: #fef08a; color: #854d0e; margin-top: 10px; }
+.hint { display: none; background: #eff6ff; padding: 12px; border-radius: 12px; margin-top: 10px; color: #1d4ed8; font-weight: bold; font-size: 14px; }
+.feedback { text-align: center; font-size: 18px; font-weight: bold; margin-top: 14px; min-height: 26px; }
+.sync-status { text-align: center; font-size: 13px; color: #475569; margin-top: 6px; min-height: 20px; }
+.next { display: none; width: 100%; background: #2563eb; color: white; margin-top: 10px; }
+
+.result { display: none; text-align: center; padding: 15px 5px; }
+.score { color: #4f46e5; font-size: 46px; font-weight: bold; margin: 10px 0; }
+
+.reflection { display: none; margin-top: 18px; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 18px; padding: 18px; }
+.voice-card { background: white; border-radius: 14px; padding: 14px; margin-top: 12px; border-left: 5px solid #eab308; }
+.voice-card h3 { margin: 0 0 6px 0; color: #1e293b; font-size: 15px; }
+.voice-card p { margin: 0 0 8px 0; color: #475569; font-size: 14px; }
+.voice-card textarea { width: 100%; height: 70px; padding: 10px; border: 2px solid #cbd5e1; border-radius: 10px; font-size: 15px; font-family: inherit; }
+.send { width: 100%; background: #1e3a8a; color: white; margin-top: 16px; }
+.done { display: none; text-align: center; padding: 18px; background: #dcfce7; color: #166534; border-radius: 14px; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div style="font-size:48px;">📜</div>
+        <h1>Қазақтардың ру-тайпалық құрылымы</h1>
+        <p class="subtitle" id="studentBadge">Тарихи білімді тексеру викторинасы</p>
+    </div>
+
+    <div id="loginSection" class="login-box">
+        <h3 style="margin-top:0; color:#1e293b;">Тапсырманы бастау:</h3>
+        <input type="text" id="studentName" placeholder="Аты-жөніңді жаз (мысалы: Айдана Серік)">
+        <input type="text" id="studentClass" placeholder="Сыныбың (мысалы: 8 «А»)" value="8 «А»">
+        <button class="start-btn" onclick="startQuiz()">🚀 БАСТАУ</button>
+    </div>
+
+    <div id="game" style="display:none;">
+        <div class="info">
+            <span id="number">1 / 10</span>
+            <span>⭐ Ұпай: <span id="points">0</span></span>
+        </div>
+        <div class="progress"><div class="bar" id="bar"></div></div>
+
+        <div class="question-box">
+            <div class="question" id="question"></div>
+        </div>
+
+        <div class="answers">
+            <button class="true" onclick="answer(true)">✅ ДҰРЫС</button>
+            <button class="false" onclick="answer(false)">❌ БҰРЫС</button>
+        </div>
+
+        <button class="help" onclick="showHint()">💡 КӨМЕК / ИШАРА</button>
+        <div class="hint" id="hint"></div>
+        <div class="feedback" id="feedback"></div>
+        <div class="sync-status" id="syncStatus"></div>
+        <button class="next" id="next" onclick="nextQuestion()">КЕЛЕСІ СҰРАҚ ➜</button>
+    </div>
+
+    <div class="result" id="result">
+        <div style="font-size:64px;">🏆</div>
+        <h2 style="color:#1e293b; margin:8px 0;">ВИКТОРИНА АЯҚТАЛДЫ!</h2>
+        <div class="score" id="finalScore">0 / 10</div>
+        <h3 id="message" style="color:#334155;"></h3>
+    </div>
+
+    <div class="reflection" id="reflection">
+        <h2 style="text-align:center; color:#1e3a8a; font-size:20px; margin-top:0;">🎵 ТАРИХТЫҢ ҮШ ҮНІ</h2>
+        <div class="voice-card">
+            <h3>🌳 БІРІНШІ ҮН: «Тамырымды таныдым»</h3>
+            <p>Бүгін қандай жаңа тарихи мәлімет білдім?</p>
+            <textarea id="voice1" placeholder="Өз ойыңды жаз..."></textarea>
+        </div>
+        <div class="voice-card">
+            <h3>🤝 ЕКІНШІ ҮН: «Бірлікті ұқтым»</h3>
+            <p>Қазақ халқының бірлігі туралы қандай қорытындыға келдім?</p>
+            <textarea id="voice2" placeholder="Өз ойыңды жаз..."></textarea>
+        </div>
+        <div class="voice-card">
+            <h3>⭐ ҮШІНШІ ҮН: «Аманатымды таңдадым»</h3>
+            <p>Қандай ұлттық құндылықты болашаққа жеткізгім келеді?</p>
+            <textarea id="voice3" placeholder="Өз ойыңды жаз..."></textarea>
+        </div>
+        <button class="send" id="sendBtn" onclick="finishReflection()">🌟 МҰҒАЛІМГЕ ЖІБЕРУ</button>
+        <div class="done" id="done">
+            <h2 style="margin-top:0;">РАҚМЕТ!</h2>
+            <p style="margin-bottom:0;">Жауаптарың мұғалім экранына жіберілді.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbx_vlcRVPI7Gg_mwbVQamMUM7UJ8NKOQAnwLtQ_KidLM4wOEVzX96aCqS8UxO7qxAbl/exec";
+const LOCAL_KEY = "quiz_live_records_v1";
+const bc = ("BroadcastChannel" in window) ? new BroadcastChannel("quiz_live_channel") : null;
+
+const questions = [
+    { q:"Шежіре – қазақ халқының ата-тегін баяндайтын тарихи дерек.", a:true, h:"Шежіре ата-бабаларымыздың шығу тегі мен туыстық байланысын баяндайды." },
+    { q:"Қазақ халқы Ұлы жүз, Орта жүз, Кіші жүзге бөлінген.", a:true, h:"Қазақ халқының дәстүрлі тарихи құрылымында үш жүз болған." },
+    { q:"Ру – ортақ ата-тектен тараған туыстық бірлестік.", a:true, h:"Ру мүшелерін ортақ ата-баба мен туыстық байланыс біріктіреді." },
+    { q:"Жеті ата дәстүрі ана жағынан тарайтын жеті ұрпақты білдіреді.", a:false, h:"Жеті ата дәстүрі әке жағынан тарайтын ата-бабаларды білуге негізделген." },
+    { q:"Генеалогиялық аңыздарда ру-тайпалардың шығу тегі туралы мәліметтер кездеседі.", a:true, h:"Генеалогиялық аңыздарда ата-баба мен ру-тайпалардың тарихы баяндалады." },
+    { q:"Ұлы жүз негізінен Батыс Қазақстанды мекендеген.", a:false, h:"Ұлы жүздің тарихи қоныстары Жетісу және Оңтүстік Қазақстан өңірлерімен байланысты." },
+    { q:"Туыстық қатынастар көшпелі қоғамда өзара көмек пен ынтымақтастықты нығайтты.", a:true, h:"Туыстық байланыстар адамдардың бір-біріне көмектесуіне жағдай жасады." },
+    { q:"Жеті ата қағидасы жақын туыстар арасындағы некеге жол бермеуге бағытталған.", a:true, h:"Бұл дәстүр жақын туыстар арасындағы некеге тыйым салуға бағытталған." },
+    { q:"Шежіре мәліметтерін басқа тарихи деректермен салыстырудың қажеті жоқ.", a:false, h:"Тарихи мәліметтердің дұрыстығын анықтау үшін оларды басқа деректермен салыстырған жөн." },
+    { q:"Ру-тайпалық құрылым көшпелі қоғамның әлеуметтік ұйымдасуына ықпал етті.", a:true, h:"Ру-тайпалық құрылым қоғамдағы адамдардың өзара байланысы мен ұйымдасуына әсер етті." }
+];
+
+let studentId = "";
+let studentName = "";
+let studentClass = "";
+let current = 0;
+let score = 0;
+let answeredCount = 0;
+let answered = false;
+let answerHistory = [];
+
+function saveLocalRecord(payload) {
+    try {
+        const list = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+        const idx = list.findIndex(r => r.id === payload.id);
+        if (idx >= 0) list[idx] = payload;
+        else list.push(payload);
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
+        if (bc) bc.postMessage(payload);
+    } catch (e) {}
+}
+
+function sendToServer(statusText, reflectionText = "") {
+    const statusEl = document.getElementById("syncStatus");
+    if (statusEl) statusEl.innerText = "📡 Жіберілуде...";
+
+    const payload = {
+        action: "submit",
+        id: studentId,
+        name: studentName,
+        className: studentClass,
+        score: score,
+        answered: answeredCount,
+        total: questions.length,
+        history: answerHistory.join(","),
+        status: statusText,
+        reflection: reflectionText,
+        timestamp: new Date().toLocaleTimeString("kk-KZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    };
+
+    saveLocalRecord(payload);
+
+    if (!API_URL || !API_URL.includes("/exec")) {
+        if (statusEl) statusEl.innerText = "✅ Тіркелді";
+        return;
+    }
+
+    fetch(API_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+    }).then(() => {
+        if (statusEl) statusEl.innerText = "✅ Мұғалім экранына жіберілді";
+    }).catch(() => {
+        if (statusEl) statusEl.innerText = "✅ Локальді тіркелді (желіні тексеріңіз)";
+    });
+}
+
+function startQuiz() {
+    const nameVal = document.getElementById("studentName").value.trim();
+    const classVal = document.getElementById("studentClass").value.trim();
+    if (!nameVal) {
+        alert("Аты-жөніңді жаз!");
+        return;
+    }
+    studentName = nameVal;
+    studentClass = classVal || "Сынып көрсетілмеген";
+    studentId = "STU_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+
+    document.getElementById("loginSection").style.display = "none";
+    document.getElementById("game").style.display = "block";
+    document.getElementById("studentBadge").innerText = `👤 ${studentName} (${studentClass})`;
+
+    sendToServer("Орындап жатыр");
+    loadQuestion();
+}
+
+function loadQuestion() {
+    answered = false;
+    document.getElementById("question").innerText = questions[current].q;
+    document.getElementById("number").innerText = (current + 1) + " / " + questions.length;
+    document.getElementById("points").innerText = score;
+    document.getElementById("bar").style.width = (current / questions.length * 100) + "%";
+    document.getElementById("feedback").innerText = "";
+    document.getElementById("hint").style.display = "none";
+    document.getElementById("next").style.display = "none";
+    document.querySelector(".true").disabled = false;
+    document.querySelector(".false").disabled = false;
+}
+
+function answer(value) {
+    if (answered) return;
+    answered = true;
+    answeredCount++;
+
+    const isCorrect = questions[current].a === value;
+    if (isCorrect) {
+        score++;
+        answerHistory.push("1");
+        document.getElementById("feedback").innerHTML = "🎉 ЖАРАЙСЫҢ! ДҰРЫС!";
+        document.getElementById("feedback").style.color = "#16a34a";
+    } else {
+        answerHistory.push("0");
+        document.getElementById("feedback").innerHTML = "❌ БҰРЫС!";
+        document.getElementById("feedback").style.color = "#dc2626";
+    }
+
+    document.getElementById("points").innerText = score;
+    document.querySelector(".true").disabled = true;
+    document.querySelector(".false").disabled = true;
+    document.getElementById("next").style.display = "block";
+
+    sendToServer(`Орындап жатыр (${answeredCount}/10)`);
+}
+
+function showHint() {
+    document.getElementById("hint").style.display = "block";
+    document.getElementById("hint").innerText = "💡 ИШАРА: " + questions[current].h;
+}
+
+function nextQuestion() {
+    current++;
+    if (current < questions.length) {
+        loadQuestion();
+    } else {
+        finishGame();
+    }
+}
+
+function finishGame() {
+    document.getElementById("game").style.display = "none";
+    document.getElementById("result").style.display = "block";
+    document.getElementById("reflection").style.display = "block";
+    document.getElementById("finalScore").innerText = score + " / 10";
+
+    const msg = score === 10 ? "🌟 Керемет! Барлық сұраққа дұрыс жауап бердің!" :
+                score >= 8 ? "👏 Өте жақсы! Тарихты жақсы меңгердің!" :
+                score >= 5 ? "👍 Жақсы! Біліміңді одан әрі жетілдір!" :
+                "📚 Жарайсың! Қайталау арқылы біліміңді толықтыр!";
+    document.getElementById("message").innerText = msg;
+
+    sendToServer("Тестті аяқтады (Рефлексия жазуда)");
+}
+
+function finishReflection() {
+    const v1 = document.getElementById("voice1").value.trim();
+    const v2 = document.getElementById("voice2").value.trim();
+    const v3 = document.getElementById("voice3").value.trim();
+    if (!v1 || !v2 || !v3) {
+        alert("Үш үннің барлығына жауап жаз!");
+        return;
+    }
+    const fullRef = `1-үн: ${v1} | 2-үн: ${v2} | 3-үн: ${v3}`;
+    document.getElementById("sendBtn").disabled = true;
+    sendToServer("Толық аяқтады ✅", fullRef);
+
+    setTimeout(() => {
+        document.getElementById("done").style.display = "block";
+        document.getElementById("sendBtn").style.display = "none";
+    }, 400);
+}
+</script>
+</body>
+</html>

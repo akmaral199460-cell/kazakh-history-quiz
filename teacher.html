@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мұғалім панелі — Тікелей бақылау тақтасы</title>
+<style>
+* { box-sizing: border-box; }
+body {
+    margin: 0; padding: 20px; font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0f172a; color: #f8fafc; min-height: 100vh;
+}
+.header {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    background: #1e293b; padding: 20px 24px; border-radius: 18px;
+    border: 1px solid #334155; margin-bottom: 20px; gap: 12px;
+}
+.header h1 { margin: 0; font-size: 22px; color: #38bdf8; }
+.header p { margin: 5px 0 0 0; color: #94a3b8; font-size: 14px; }
+.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+button {
+    padding: 10px 15px; border: none; border-radius: 12px; font-weight: bold;
+    cursor: pointer; font-size: 14px;
+}
+.btn-refresh { background: #2563eb; color: white; }
+.btn-clear { background: #dc2626; color: white; }
+
+.stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px; margin-bottom: 22px;
+}
+.stat-card {
+    background: #1e293b; padding: 18px; border-radius: 16px;
+    border: 1px solid #334155; text-align: center;
+}
+.stat-num { font-size: 34px; font-weight: bold; color: #38bdf8; margin-top: 4px; }
+.stat-label { color: #94a3b8; font-size: 14px; }
+
+.table-container {
+    background: #1e293b; border-radius: 18px; border: 1px solid #334155;
+    overflow-x: auto;
+}
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th { background: #0f172a; color: #94a3b8; padding: 14px; font-size: 13px; }
+td { padding: 14px; border-bottom: 1px solid #334155; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+
+.dots-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.q-dot {
+    width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: bold; color: white;
+}
+.q-correct { background: #16a34a; }
+.q-wrong { background: #dc2626; }
+.q-empty { background: #334155; color: #94a3b8; }
+
+.score-pill {
+    background: #2563eb; color: white; padding: 5px 11px; border-radius: 9px;
+    font-weight: bold; font-size: 14px; display: inline-block;
+}
+.status-badge { padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; }
+.status-done { background: rgba(22, 163, 74, 0.2); color: #4ade80; }
+.status-progress { background: rgba(234, 179, 8, 0.2); color: #facc15; }
+.reflection-text {
+    font-size: 13px; color: #e2e8f0; max-width: 320px; line-height: 1.4;
+    background: #0f172a; padding: 8px 12px; border-radius: 10px;
+}
+.empty-state { text-align: center; padding: 45px; color: #94a3b8; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <h1>📊 Мұғалімнің бақылау тақтасы (Live)</h1>
+        <p>Тақырып: Қазақтардың ру-тайпалық құрылымының ерекшеліктері • <span id="lastSync" style="color:#38bdf8;">Дайын</span></p>
+    </div>
+    <div class="controls">
+        <button class="btn-refresh" onclick="refreshAll()">🔄 Жаңарту</button>
+        <button class="btn-clear" onclick="clearBoard()">🗑️ Тазалау</button>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Қатысушы оқушылар</div>
+        <div class="stat-num" id="totalStudents">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Толық аяқтағандар</div>
+        <div class="stat-num" id="completedStudents" style="color:#4ade80;">0</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Орташа ұпай</div>
+        <div class="stat-num" id="avgScore" style="color:#facc15;">0.0</div>
+    </div>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Оқушының аты-жөні</th>
+                <th>Сұрақтар барысы (1–10)</th>
+                <th>Жауап / Ұпай</th>
+                <th>Күйі</th>
+                <th>Тарихтың үш үні (Рефлексия)</th>
+            </tr>
+        </thead>
+        <tbody id="boardBody">
+            <tr><td colspan="6" class="empty-state">📭 Әзірге ешбір оқушы тапсырманы бастаған жоқ.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbx_vlcRVPI7Gg_mwbVQamMUM7UJ8NKOQAnwLtQ_KidLM4wOEVzX96aCqS8UxO7qxAbl/exec  ";
+const LOCAL_KEY = "quiz_live_records_v1";
+const bc = ("BroadcastChannel" in window) ? new BroadcastChannel("quiz_live_channel") : null;
+let remoteRows = [];
+
+function getLocalRows() {
+    try {
+        return JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+    } catch (e) {
+        return [];
+    }
+}
+
+function renderDots(historyStr) {
+    const arr = historyStr ? String(historyStr).split(",") : [];
+    let html = '<div class="dots-row">';
+    for (let i = 0; i < 10; i++) {
+        if (arr[i] === "1") html += `<div class="q-dot q-correct">${i + 1}</div>`;
+        else if (arr[i] === "0") html += `<div class="q-dot q-wrong">${i + 1}</div>`;
+        else html += `<div class="q-dot q-empty">${i + 1}</div>`;
+    }
+    return html + '</div>';
+}
+
+function renderMerged() {
+    const all = [...getLocalRows(), ...remoteRows];
+    const latest = {};
+    all.forEach(item => {
+        if (!item || !item.name) return;
+        latest[item.id || item.name] = item;
+    });
+    const students = Object.values(latest).reverse();
+    renderTable(students);
+}
+
+function fetchRemote() {
+    if (!API_URL || !API_URL.includes("/exec")) return;
+    const cbName = "cb_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    const old = document.getElementById("jsonp_script");
+    if (old) old.remove();
+
+    window[cbName] = function(data) {
+        delete window[cbName];
+        remoteRows = Array.isArray(data) ? data : (data && data.data ? data.data : []);
+        const now = new Date().toLocaleTimeString("kk-KZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        document.getElementById("lastSync").innerText = "Жаңартылды: " + now;
+        renderMerged();
+    };
+
+    const s = document.createElement("script");
+    s.id = "jsonp_script";
+    s.src = `${API_URL}?callback=${cbName}&t=${Date.now()}`;
+    s.onerror = function() {
+        delete window[cbName];
+    };
+    document.body.appendChild(s);
+}
+
+function refreshAll() {
+    renderMerged();
+    fetchRemote();
+}
+
+function renderTable(students) {
+    const tbody = document.getElementById("boardBody");
+    document.getElementById("totalStudents").innerText = students.length;
+
+    if (students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">📭 Әзірге ешбір оқушы тапсырманы бастаған жоқ.</td></tr>';
+        document.getElementById("completedStudents").innerText = "0";
+        document.getElementById("avgScore").innerText = "0.0";
+        return;
+    }
+
+    let doneCount = 0;
+    let sumScore = 0;
+    let html = "";
+
+    students.forEach((st, i) => {
+        const sc = Number(st.score) || 0;
+        const ans = Number(st.answered) || 0;
+        sumScore += sc;
+        const isDone = (st.status && String(st.status).includes("аяқтады")) || ans >= 10;
+        if (isDone) doneCount++;
+
+        const badgeClass = isDone ? "status-done" : "status-progress";
+        const refHtml = st.reflection
+            ? `<div class="reflection-text">${st.reflection}</div>`
+            : `<span style="color:#64748b; font-size:13px;">— Жазылуда...</span>`;
+
+        html += `
+            <tr>
+                <td style="color:#94a3b8; font-weight:bold;">${i + 1}</td>
+                <td>
+                    <div style="font-weight:bold; font-size:15px;">${st.name}</div>
+                    <div style="font-size:12px; color:#94a3b8;">${st.className || ""} • ${st.timestamp || ""}</div>
+                </td>
+                <td>${renderDots(st.history)}</td>
+                <td>
+                    <span class="score-pill">${sc} / 10</span>
+                    <div style="font-size:12px; color:#94a3b8; margin-top:4px;">Жауап: ${ans}/10</div>
+                </td>
+                <td><span class="status-badge ${badgeClass}">${st.status || "Орындауда"}</span></td>
+                <td>${refHtml}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+    document.getElementById("completedStudents").innerText = doneCount;
+    document.getElementById("avgScore").innerText = (sumScore / students.length).toFixed(1);
+}
+
+function clearBoard() {
+    if (!confirm("Тақтадағы нәтижелерді өшіреміз бе?")) return;
+    localStorage.removeItem(LOCAL_KEY);
+    remoteRows = [];
+    renderMerged();
+
+    if (API_URL && API_URL.includes("/exec")) {
+        fetch(API_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "clear" })
+        });
+    }
+}
+
+window.addEventListener("storage", renderMerged);
+if (bc) bc.onmessage = renderMerged;
+
+refreshAll();
+setInterval(fetchRemote, 4000);
+</script>
+</body>
+</html>
